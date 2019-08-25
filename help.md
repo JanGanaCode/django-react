@@ -1,3 +1,4 @@
+# Start a new project
 #### 1. install pipenv
 `pip3 install pipenv`
 
@@ -50,7 +51,7 @@ class Lead(model.Model):
 ### 10. run a migration (add to the DB)
 `python manage.py migrate`
 
-
+<br/><br/>
 
 # API
 ### 1. create an api.py file in the app folder
