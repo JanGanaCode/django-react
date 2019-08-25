@@ -145,7 +145,7 @@ module.exports = {
 ```
 
 #### 8. package.json scripts
-`"dev": "webpack --mode development ./{project_name}/frontend/src/index.js --output ./{project_name}/frontend/static/frontend/main.js"`
+`"dev": "webpack --mode development --watch ./{project_name}/frontend/src/index.js --output ./{project_name}/frontend/static/frontend/main.js"`
 
 `"build": "webpack --mode production ./{project_name}/frontend/src/index.js --output ./{project_name}/frontend/static/frontend/main.js"`
 
@@ -240,3 +240,4 @@ urlpatterns = [
 
 #### 16. run server
 `python manage.py runserver`
+`http://localhost:8000/`
