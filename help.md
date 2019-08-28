@@ -241,3 +241,229 @@ urlpatterns = [
 #### 16. run server
 `python manage.py runserver`
 `http://localhost:8000/`
+
+<br/><br/>
+
+# Authentication
+### 1. `{app_name}/models.py`
+`from django.contrib.auth.models import User`
+
+##### in model:
+`owner = models.ForeignKey(User, related_name='Leads', on_delete=models.CASCADE, null=True)`
+
+### 2. create a new migration
+`python manage.py makemigrations`
+
+### 3. run migration
+`python manage.py migrate`
+
+### 4. `{app_name}/api.py` - change permissions
+```python
+# lead viewset
+class LeadViewSet(viewsets.ModelViewSet):
+  permission_classes = [
+    permissions.IsAuthenticated
+  ]
+
+  serializer_class = LeadSerializer
+
+  def get_queryset(self):
+    return self.request.user.leads.all()
+
+  def perform_create(self, serializer):
+    serializer.save(owner=self.request.user)
+```
+
+### 5. add django-rest-knox into {app_name}/settings.py and DEFAULT_AUTHENTICATION_CLASSES
+```python
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'leads',
+    'rest_framework',
+    'frontend',
+    'knox',
+]
+
+REST_FRAMEWORK = {
+  'DEFAULT_AUTHENTICATION_CLASSES': ('knox.auth.TokenAuthentication',),
+}
+```
+
+### 6. run migrations
+`python manage.py migrate`
+
+### 7. create a new app - accounts
+`python manage.py startapp accounts`
+
+
+### 8. `{app_name}/settings.py` - add app
+```python
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'leads',
+    'rest_framework',
+    'frontend',
+    'knox',
+    'accounts',
+]
+```
+
+### 9. create account serializer - accounts/serializers.py
+```python
+from rest_framework import serializers
+from django.contrib.auth.models import User
+from django.contrib.auth import authenticate
+```
+
+### 10. user serializer - accounts/serializers.py
+```python
+class UserSerializer(serializers.ModelSerializer):
+  class Meta:
+    model = User
+    fields = ('id', 'username', 'email')
+```
+
+### 11. register serializer - accounts/serializers.py
+```python
+class RegisterSerializer(serializers.ModelSerializer):
+  class Meta:
+    model = User
+    fields = ('id', 'username', 'email', 'password')
+    extra_kwargs = {'password': {'write_only': True}}
+  
+  def create(self, validated_data):
+    user = User.objects.create_user(
+      validated_data['username'], 
+      validated_data['email'], 
+      validated_data['password'])
+
+    return user
+```
+
+### 12. API - accounts/api.py
+```python
+from rest_framework import generics, permissions
+from rest_framework.response import Response
+from knox.models import AuthToken
+from .serializers import UserSerializer, RegisterSerializer
+```
+
+### 13. register API - accounts/api.py
+```python
+class RegisterAPI(generics.GenericAPIView):
+  serializer_class = RegisterSerializer
+
+  def post(self, request, *args, **kwargs):
+    serializer = self.get_serializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    user = serializer.save()
+
+    return Response({
+      'user': UserSerializer(user, context=self.get_serializer_context().data),
+      'token': AuthToken.objects.create(user)[1]
+    })
+```
+
+### 14. create a register endpoint - accounts/urls.py
+```python
+from django.urls import path, include
+from .api import RegisterAPI
+from knox import views as knox_views
+
+urlpatterns = [
+  path('api/auth', include('knox.urls')),
+  path('api/auth/register', RegisterAPI.as_view())
+]
+```
+
+### 15. include accounts/urls.py in main urls.py
+```python
+from django.contrib import admin
+from django.urls import path, include
+
+urlpatterns = [
+    path('', include('frontend.urls')),
+    path('', include('leads.urls')),
+    path('', include('accounts.urls')),
+]
+```
+
+### 16. login serializer - accounts/serializers.py
+```python
+class LoginSerializer(serializers.Serializer):
+  username = serializers.CharField
+  password = serializers.CharField
+  
+  def validate(self, data):
+    user = authenticate(**data)
+    if user and user.is_active:
+      return user
+    raise serializers.ValidationError('Incorrect credentials')
+```
+
+### 17. login API - accounts/api.py
+```python
+class LoginAPI(generics.GenericAPIView):
+  serializer_class = LoginSerializer
+
+  def post(self, request, *args, **kwargs):
+    serializer = self.get_serializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    user = serializer.validated_data
+    return Response({
+      "user": UserSerializer(user, context=self.get_serializer_context()).data,
+      "token": AuthToken.objects.create(user)[1]
+    })
+```
+
+### 18. create a login endpoint - accounts/urls.py
+```python
+from django.urls import path, include
+from .api import RegisterAPI, LoginAPI
+from knox import views as knox_views
+
+urlpatterns = [
+  path('api/auth', include('knox.urls')),
+  path('api/auth/register', RegisterAPI.as_view()),
+  path('api/auth/login', LoginAPI.as_view())
+]
+```
+
+### 19. get user API - accounts/api.py
+```python
+class UserAPI(generics.RetrieveAPIView):
+  permission_classes = [
+    permissions.IsAuthenticated,
+  ]
+  serializer_class = UserSerializer
+
+  def get_object(self):
+    return self.request.user
+```
+
+### 20. create a get user endpoint - accounts/urls.py
+
+### 21. logout - accounts/urls.py
+```python
+from django.urls import path, include
+from .api import RegisterAPI, LoginAPI, UserAPI
+from knox import views as knox_views
+
+urlpatterns = [
+  path('api/auth', include('knox.urls')),
+  path('api/auth/register', RegisterAPI.as_view()),
+  path('api/auth/login', LoginAPI.as_view()),
+  path('api/auth/user', UserAPI.as_view()),
+  path('api/auth/logout', knox_views.LogoutView.as_view(), name='knox_logout'),
+]
+```
