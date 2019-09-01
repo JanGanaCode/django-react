@@ -2,6 +2,7 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import { Link, Redirect } from 'react-router-dom';
+import { loginUser } from '../../actions/auth';
 
 export class Login extends Component {
   state = {
@@ -11,26 +12,21 @@ export class Login extends Component {
 
   onSubmit = e => {
     e.preventDefault();
-    console.log('submit');
+    const { loginUser } = this.props;
+    const { username, password } = this.state;
 
-    // const { username, email, password, password2 } = this.state;
-    // if (password !== password2) {
-    //   this.props.createMessage({ passwordNotMatch: "Passwords do not match" });
-    // } else {
-    //   const newUser = {
-    //     username,
-    //     password,
-    //     email
-    //   };
-    //   this.props.register(newUser);
-    // }
+    loginUser(username, password);
   };
 
   onChange = e => this.setState({ [e.target.name]: e.target.value });
 
   render() {
-    const { username, email, password, password2 } = this.state;
+    const { username, password } = this.state;
+    const { isAuthenticated } = this.props;
 
+    if (isAuthenticated) {
+      return <Redirect to='/' />;
+    }
     return (
       <div className='col-md-6 m-auto'>
         <div className='card card-body mt-5'>
@@ -71,4 +67,20 @@ export class Login extends Component {
   }
 }
 
-export default Login;
+Login.propTypes = {
+  loginUser: PropTypes.func.isRequired,
+  isAuthenticated: PropTypes.bool
+};
+
+Login.defaultProps = {
+  isAuthenticated: PropTypes.isNull
+};
+
+const mapStateToProps = state => ({
+  isAuthenticated: state.auth.isAuthenticated
+});
+
+export default connect(
+  mapStateToProps,
+  { loginUser }
+)(Login);

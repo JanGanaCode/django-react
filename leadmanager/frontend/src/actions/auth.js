@@ -1,4 +1,10 @@
-import { USER_LOADING, USER_LOADED, AUTH_ERROR } from './types';
+import {
+  USER_LOADING,
+  USER_LOADED,
+  AUTH_ERROR,
+  LOGIN_SUCCESS,
+  LOGIN_FAIL
+} from './types';
 import axios from 'axios';
 import { returnErrors } from './messages';
 
@@ -26,16 +32,44 @@ export const loadUser = () => (dispatch, getState) => {
 
   axios
     .get('/api/auth/user', config)
-    .then(res => {
+    .then(response => {
       dispatch({
         type: USER_LOADED,
-        payload: res
+        payload: response
       });
     })
     .catch(err => {
       dispatch(returnErrors(err.response.data, err.response.status));
       dispatch({
         type: AUTH_ERROR
+      });
+    });
+};
+
+// log in user
+export const loginUser = (username, password) => dispatch => {
+  // headers
+  const config = {
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  };
+
+  // request body
+  const body = JSON.stringify({ username, password });
+
+  axios
+    .post('/api/auth/login', body, config)
+    .then(response => {
+      dispatch({
+        type: LOGIN_SUCCESS,
+        payload: response.data
+      });
+    })
+    .catch(err => {
+      dispatch(returnErrors(err.response.data, err.response.status));
+      dispatch({
+        type: LOGIN_FAIL
       });
     });
 };
